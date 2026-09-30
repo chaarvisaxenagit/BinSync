@@ -1,0 +1,199 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public role and identity badge record for a BinSync user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "role": {
+          "type": "string",
+          "enum": ["Citizen", "Worker", "Admin"]
+        },
+        "badgeNumber": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "name", "role", "badgeNumber"]
+    },
+    "UserPrivatePii": {
+      "title": "UserPrivatePii",
+      "description": "Private PII record isolated per user under /users/{userId}/private/{infoId}.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 254
+        },
+        "govtOrDeptId": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "email", "govtOrDeptId"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "Sanitation complaint and resolution verification record.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "wasteCategory": {
+          "type": "string",
+          "enum": ["Plastic/Dry", "Organic/Food", "Hazardous", "E-waste", "Overfilled Bin", "Road Dumping"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["REPORTED", "ASSIGNED", "IN_PROGRESS", "ACTION_REQUIRED", "FLAGGED", "RESOLVED", "CLOSED", "REOPENED"]
+        },
+        "location": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 300
+        },
+        "estimatedEffort": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "citizenUid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "citizenName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "citizenGovtId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "assignedWorkerId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "assignedWorkerName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "beforeImageUrl": {
+          "type": "string",
+          "maxLength": 800000
+        },
+        "afterImageUrl": {
+          "type": "string",
+          "maxLength": 800000
+        },
+        "aiVerdict": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "aiConfidence": {
+          "type": "number"
+        },
+        "aiReasoning": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "rejectionReason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "adminOverrideReason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "timelineJson": {
+          "type": "string",
+          "maxLength": 50000
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["PUBLIC_CIVIC"]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "wasteCategory",
+        "priority",
+        "status",
+        "location",
+        "estimatedEffort",
+        "citizenUid",
+        "citizenName",
+        "beforeImageUrl",
+        "visibility"
+      ]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrator lookup document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "departmentCode": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": ["uid", "departmentCode"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public role and badge profiles for authenticated users."
+    },
+    "/users/{userId}/private/{infoId}": {
+      "schema": { "$ref": "#/entities/UserPrivatePii" },
+      "description": "Strictly isolated PII records accessible only to the owner or verified admins."
+    },
+    "/tickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/Ticket" },
+      "description": "Sanitation complaints, AI triage metadata, before/after photos, and resolution state."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted administrator registry."
+    }
+  }
+}

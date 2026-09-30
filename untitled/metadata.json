@@ -1,0 +1,6 @@
+{
+  "name": "BinSync",
+  "description": "AI-Verified Sanitation & Waste Resolution Loop with regional Indian multilingual support, Gemini visual triage, before/after verification, and role-based civic governance.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

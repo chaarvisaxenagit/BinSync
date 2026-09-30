@@ -1,0 +1,257 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'chaarvisaxena261226@gmail.com'
+      );
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'name', 'role', 'badgeNumber', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'name', 'role', 'badgeNumber', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.role is string && data.role.size() <= 20 && (data.role == 'Citizen' || data.role == 'Worker' || data.role == 'Admin') &&
+        data.badgeNumber is string && data.badgeNumber.size() >= 3 && data.badgeNumber.size() <= 64 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: UserPrivatePii
+    function isValidUserPrivatePii(data) {
+      return data.keys().hasAll(['uid', 'email', 'govtOrDeptId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'govtOrDeptId', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.govtOrDeptId is string && data.govtOrDeptId.size() >= 3 && data.govtOrDeptId.size() <= 64 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: AdminRecord
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'departmentCode', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'departmentCode', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.departmentCode is string && data.departmentCode.size() >= 3 && data.departmentCode.size() <= 64 &&
+        data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: Ticket
+    function isValidTicket(data) {
+      return data.keys().hasAll([
+          'id', 'title', 'wasteCategory', 'priority', 'status',
+          'location', 'estimatedEffort', 'citizenUid', 'citizenName',
+          'beforeImageUrl', 'visibility', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'title', 'description', 'wasteCategory', 'priority', 'status',
+          'location', 'estimatedEffort', 'citizenUid', 'citizenName', 'citizenGovtId',
+          'assignedWorkerId', 'assignedWorkerName', 'beforeImageUrl', 'afterImageUrl',
+          'aiVerdict', 'aiConfidence', 'aiReasoning', 'rejectionReason',
+          'adminOverrideReason', 'timelineJson', 'visibility', 'createdAt', 'updatedAt'
+        ]) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 200 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 1000)) &&
+        data.wasteCategory is string && data.wasteCategory.size() <= 40 && (
+          data.wasteCategory == 'Plastic/Dry' ||
+          data.wasteCategory == 'Organic/Food' ||
+          data.wasteCategory == 'Hazardous' ||
+          data.wasteCategory == 'E-waste' ||
+          data.wasteCategory == 'Overfilled Bin' ||
+          data.wasteCategory == 'Road Dumping'
+        ) &&
+        data.priority is string && data.priority.size() <= 20 && (
+          data.priority == 'LOW' ||
+          data.priority == 'MEDIUM' ||
+          data.priority == 'HIGH' ||
+          data.priority == 'CRITICAL'
+        ) &&
+        data.status is string && data.status.size() <= 30 && (
+          data.status == 'REPORTED' ||
+          data.status == 'ASSIGNED' ||
+          data.status == 'IN_PROGRESS' ||
+          data.status == 'ACTION_REQUIRED' ||
+          data.status == 'FLAGGED' ||
+          data.status == 'RESOLVED' ||
+          data.status == 'CLOSED' ||
+          data.status == 'REOPENED'
+        ) &&
+        data.location is string && data.location.size() >= 2 && data.location.size() <= 300 &&
+        data.estimatedEffort is string && data.estimatedEffort.size() >= 1 && data.estimatedEffort.size() <= 120 &&
+        data.citizenUid is string && data.citizenUid.size() >= 1 && data.citizenUid.size() <= 128 && data.citizenUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.citizenName is string && data.citizenName.size() >= 1 && data.citizenName.size() <= 100 &&
+        (!('citizenGovtId' in data) || (data.citizenGovtId is string && data.citizenGovtId.size() <= 64)) &&
+        (!('assignedWorkerId' in data) || (data.assignedWorkerId is string && data.assignedWorkerId.size() <= 128)) &&
+        (!('assignedWorkerName' in data) || (data.assignedWorkerName is string && data.assignedWorkerName.size() <= 100)) &&
+        data.beforeImageUrl is string && data.beforeImageUrl.size() >= 5 && data.beforeImageUrl.size() <= 800000 &&
+        (!('afterImageUrl' in data) || (data.afterImageUrl is string && data.afterImageUrl.size() <= 800000)) &&
+        (!('aiVerdict' in data) || (data.aiVerdict is string && data.aiVerdict.size() <= 40)) &&
+        (!('aiConfidence' in data) || (data.aiConfidence is number && data.aiConfidence >= 0 && data.aiConfidence <= 100)) &&
+        (!('aiReasoning' in data) || (data.aiReasoning is string && data.aiReasoning.size() <= 1000)) &&
+        (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 500)) &&
+        (!('adminOverrideReason' in data) || (data.adminOverrideReason is string && data.adminOverrideReason.size() <= 500)) &&
+        (!('timelineJson' in data) || (data.timelineJson is string && data.timelineJson.size() <= 50000)) &&
+        data.visibility is string && data.visibility.size() <= 20 && data.visibility == 'PUBLIC_CIVIC' &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // Collection: /users/{userId}
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isVerifiedUser() && resource.data.uid == request.auth.uid;
+      allow create: if isOwner(userId) &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().role != 'Admin' || isAdmin());
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'badgeNumber', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      // Subcollection: /users/{userId}/private/{infoId} (PII Split Collection)
+      match /private/{infoId} {
+        allow get: if isValidId(userId) && isValidId(infoId) && (isOwner(userId) || isAdmin()) &&
+          exists(/databases/$(database)/documents/users/$(userId));
+        allow list: if false;
+        allow create: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(infoId) &&
+          isValidUserPrivatePii(incoming()) &&
+          incoming().uid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/users/$(userId));
+        allow update: if isOwner(userId) &&
+          isValidId(userId) &&
+          isValidId(infoId) &&
+          isValidUserPrivatePii(incoming()) &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'govtOrDeptId', 'updatedAt']) &&
+          exists(/databases/$(database)/documents/users/$(userId));
+        allow delete: if isValidId(userId) && isValidId(infoId) && isAdmin();
+      }
+    }
+
+    // Collection: /admins/{adminId}
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if false;
+      allow create: if isValidId(adminId) &&
+        isAdmin() &&
+        isValidAdminRecord(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().createdAt == request.time;
+      allow update, delete: if isValidId(adminId) && isAdmin();
+    }
+
+    // Collection: /tickets/{ticketId}
+    match /tickets/{ticketId} {
+      allow get: if isValidId(ticketId) && isVerifiedUser() && (
+        existing().visibility == 'PUBLIC_CIVIC' ||
+        existing().citizenUid == request.auth.uid ||
+        existing().assignedWorkerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isVerifiedUser() && (
+        resource.data.visibility == 'PUBLIC_CIVIC' ||
+        resource.data.citizenUid == request.auth.uid ||
+        resource.data.assignedWorkerId == request.auth.uid
+      );
+      allow create: if isVerifiedUser() &&
+        isValidId(ticketId) &&
+        isValidTicket(incoming()) &&
+        incoming().id == ticketId &&
+        incoming().citizenUid == request.auth.uid &&
+        incoming().status == 'REPORTED' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser() &&
+        isValidId(ticketId) &&
+        isValidTicket(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().citizenUid == existing().citizenUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          isAdmin() ||
+          (
+            existing().status != 'CLOSED' &&
+            (
+              // Action 1: Worker starts job or submits post-cleanup verification
+              (
+                existing().assignedWorkerId == request.auth.uid &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'status', 'afterImageUrl', 'aiVerdict', 'aiConfidence',
+                  'aiReasoning', 'timelineJson', 'updatedAt'
+                ])
+              ) ||
+              // Action 2: Citizen confirms or rejects resolution
+              (
+                existing().citizenUid == request.auth.uid &&
+                (existing().status == 'RESOLVED' || existing().status == 'FLAGGED') &&
+                (incoming().status == 'CLOSED' || incoming().status == 'REOPENED') &&
+                incoming().diff(existing()).affectedKeys().hasOnly([
+                  'status', 'rejectionReason', 'timelineJson', 'updatedAt'
+                ])
+              )
+            )
+          )
+        );
+      allow delete: if isValidId(ticketId) && isAdmin();
+    }
+  }
+}
